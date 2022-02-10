@@ -1,12 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using GamesShop.Data;
+using GamesShop.Models.Store;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using System.Linq;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Rendering;
-using Microsoft.EntityFrameworkCore;
-using GamesShop.Data;
-using GamesShop.Models.Store;
 
 namespace GamesShop.Controllers
 {

@@ -1,9 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace GamesShop.Models.Store
 {
@@ -11,6 +7,8 @@ namespace GamesShop.Models.Store
     {
         [Key]
         public int IdDeveloper { get; set; }
+        [Required]
+        [Display(Name = "Команда разработчиков")]
         public string Name { get; set; }
         public virtual ICollection<Game> Games { get; set; }
     }

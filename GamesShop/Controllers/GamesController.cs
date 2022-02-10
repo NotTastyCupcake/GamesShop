@@ -1,13 +1,13 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+﻿using GamesShop.Data;
+using GamesShop.Models.Store;
+using GamesShop.Models.Store.SroreViewModel;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
-using GamesShop.Data;
-using GamesShop.Models.Store;
-using GamesShop.Models.Store.SroreViewModel;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace GamesShop.Controllers
 {
@@ -21,10 +21,32 @@ namespace GamesShop.Controllers
         }
 
         // GET: Games
-        public async Task<IActionResult> Index()
+        public async Task<IActionResult> Index(string gameName, int? idDeveloper, int? idGenre )
         {
-            var applicationContext = _context.Games.Include(g => g.Developer);
-            return View(await applicationContext.ToListAsync());
+            var games = _context.Games
+                .Include(d => d.Developer)
+                .Include(g => g.GenreAssigment).ThenInclude(g => g.Genre)
+                .AsNoTracking();
+
+
+            if (idDeveloper != null && idDeveloper != 0)
+            {
+                games = games.Where(p => p.IdDeveloper == idDeveloper);
+            }
+            if (!String.IsNullOrWhiteSpace(gameName))
+            {
+                games = games.Where(p => p.Name.Contains(gameName));
+            }
+            if (idGenre != null && idGenre != 0)
+            {
+                games = from game in games
+                        from ganre in game.GenreAssigment
+                        where ganre.GenreId == idGenre
+                        select game;
+            }
+            PopulateDeveloperDropDownList();
+            PopulateGenreDropDownList();
+            return View(await games.ToListAsync());
         }
 
         // GET: Games/Details/5
@@ -37,6 +59,8 @@ namespace GamesShop.Controllers
 
             var game = await _context.Games
                 .Include(g => g.Developer)
+                .Include(i => i.GenreAssigment).ThenInclude(i => i.Genre)
+                .AsNoTracking()
                 .FirstOrDefaultAsync(m => m.Id == id);
             if (game == null)
             {
@@ -63,12 +87,12 @@ namespace GamesShop.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create([Bind("Id,Name,IdDeveloper")] Game game, string[] selectedGenres)
         {
-            if(selectedGenres != null)
+            if (selectedGenres != null)
             {
                 game.GenreAssigment = new List<GenreAssigment>();
-                foreach(var genre in selectedGenres)
+                foreach (var genre in selectedGenres)
                 {
-                    var genreToAdd = new GenreAssigment { GameId = game.Id ,GenreId = int.Parse(genre) };
+                    var genreToAdd = new GenreAssigment { GameId = game.Id, GenreId = int.Parse(genre) };
                     game.GenreAssigment.Add(genreToAdd);
                 }
             }
@@ -219,9 +243,16 @@ namespace GamesShop.Controllers
         private void PopulateDeveloperDropDownList(object selectedDeveloper = null)
         {
             var developerQuery = from d in _context.Developers
-                                   orderby d.Name
-                                   select d;
+                                 orderby d.Name
+                                 select d;
             ViewBag.IdDeveloper = new SelectList(developerQuery, "IdDeveloper", "Name", selectedDeveloper);
+        }
+        private void PopulateGenreDropDownList(object selectedGenre = null)
+        {
+            var genreQuery = from d in _context.Genres
+                                 orderby d.Name
+                                 select d;
+            ViewBag.IdGenre = new SelectList(genreQuery, "IdGenre", "Name", selectedGenre);
         }
         private void PopulateAssignedGenreData(Game game)
         {
