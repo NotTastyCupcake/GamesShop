@@ -17,6 +17,7 @@ namespace GamesShop.Models.Store
         [Display(Name = "Команда разработчиков")]
         public int IdDeveloper { get; set; }
         [ForeignKey("IdDeveloper")]
+        [Required(ErrorMessage = "Не указана команда разработчиков")]
         [Display(Name = "Команда разработчиков")]
         public virtual Developer Developer { get; set; }
         [Display(Name = "Жанр игры")]
