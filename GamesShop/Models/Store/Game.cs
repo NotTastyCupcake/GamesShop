@@ -10,14 +10,12 @@ namespace GamesShop.Models.Store
         [Key]
         public int Id { get; set; }
         [Required (ErrorMessage = "Не указано название игры")]
-        [RegularExpression(@"[A-Za-z0-9]", ErrorMessage = "Некорректное название игры")]
         [Display(Name = "Название игры")]
         public string Name { get; set; }
         [Required (ErrorMessage = "Не указана команда разработчиков")]
         [Display(Name = "Команда разработчиков")]
         public int IdDeveloper { get; set; }
         [ForeignKey("IdDeveloper")]
-        [Required(ErrorMessage = "Не указана команда разработчиков")]
         [Display(Name = "Команда разработчиков")]
         public virtual Developer Developer { get; set; }
         [Display(Name = "Жанр игры")]

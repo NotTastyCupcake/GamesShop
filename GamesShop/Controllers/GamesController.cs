@@ -4,6 +4,7 @@ using GamesShop.Models.Store.SroreViewModel;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
+using Repository;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -13,37 +14,19 @@ namespace GamesShop.Controllers
 {
     public class GamesController : Controller
     {
+        private readonly IRepositoryGame _db;
         private readonly ApplicationContext _context;
 
         public GamesController(ApplicationContext context)
         {
-            _context = context;
+            this._db = new GameReposiroty(context);
+            this._context = context;
         }
 
         // GET: Games
         public async Task<IActionResult> Index(string gameName, int? idDeveloper, int? idGenre )
         {
-            var games = _context.Games
-                .Include(d => d.Developer)
-                .Include(g => g.GenreAssigment).ThenInclude(g => g.Genre)
-                .AsNoTracking();
-
-
-            if (idDeveloper != null && idDeveloper != 0)
-            {
-                games = games.Where(p => p.IdDeveloper == idDeveloper);
-            }
-            if (!String.IsNullOrWhiteSpace(gameName))
-            {
-                games = games.Where(p => p.Name.Contains(gameName));
-            }
-            if (idGenre != null && idGenre != 0)
-            {
-                games = from game in games
-                        from ganre in game.GenreAssigment
-                        where ganre.GenreId == idGenre
-                        select game;
-            }
+            var games = _db.SearchItems(gameName,idDeveloper,idGenre);
             PopulateDeveloperDropDownList();
             PopulateGenreDropDownList();
             return View(await games.ToListAsync());
@@ -57,11 +40,7 @@ namespace GamesShop.Controllers
                 return NotFound();
             }
 
-            var game = await _context.Games
-                .Include(g => g.Developer)
-                .Include(i => i.GenreAssigment).ThenInclude(i => i.Genre)
-                .AsNoTracking()
-                .FirstOrDefaultAsync(m => m.Id == id);
+            var game = await _db.GetItemAsync(id);
             if (game == null)
             {
                 return NotFound();
@@ -87,19 +66,11 @@ namespace GamesShop.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create([Bind("Id,Name,IdDeveloper")] Game game, string[] selectedGenres)
         {
-            if (selectedGenres != null)
-            {
-                game.GenreAssigment = new List<GenreAssigment>();
-                foreach (var genre in selectedGenres)
-                {
-                    var genreToAdd = new GenreAssigment { GameId = game.Id, GenreId = int.Parse(genre) };
-                    game.GenreAssigment.Add(genreToAdd);
-                }
-            }
+            _db.Create(game,selectedGenres);
             if (ModelState.IsValid)
             {
-                _context.Add(game);
-                await _context.SaveChangesAsync();
+                _db.Create(game);
+                await _db.SaveAsync();
                 return RedirectToAction(nameof(Index));
             }
             PopulateAssignedGenreData(game);
@@ -115,10 +86,8 @@ namespace GamesShop.Controllers
                 return NotFound();
             }
 
-            var game = await _context.Games
-                .Include(i => i.GenreAssigment).ThenInclude(i => i.Genre)
-                .AsNoTracking()
-                .FirstOrDefaultAsync(m => m.Id == id);
+            var game = await _db.GetItemAsync(id);
+
             if (game == null)
             {
                 return NotFound();
@@ -150,14 +119,14 @@ namespace GamesShop.Controllers
               "",
               i => i.Name, i => i.IdDeveloper))
             {
-                UpdateGameGenres(selectedGenres, gameToUpdate);
+                _db.Update(gameToUpdate, selectedGenres);
                 try
                 {
-                    await _context.SaveChangesAsync();
+                    await _db.SaveAsync();
                 }
                 catch (DbUpdateConcurrencyException)
                 {
-                    if (!GameExists(gameToUpdate.Id))
+                    if (!_db.ItemExist(gameToUpdate.Id))
                     {
                         return NotFound();
                     }
@@ -168,7 +137,7 @@ namespace GamesShop.Controllers
                 }
                 return RedirectToAction(nameof(Index));
             }
-            UpdateGameGenres(selectedGenres, gameToUpdate);
+            _db.Update(gameToUpdate, selectedGenres);
             PopulateDeveloperDropDownList(gameToUpdate.IdDeveloper);
             return View(gameToUpdate);
         }
@@ -180,10 +149,7 @@ namespace GamesShop.Controllers
             {
                 return NotFound();
             }
-
-            var game = await _context.Games
-                .Include(g => g.Developer)
-                .FirstOrDefaultAsync(m => m.Id == id);
+            var game = await _db.GetItemAsync(id);
             if (game == null)
             {
                 return NotFound();
@@ -197,47 +163,8 @@ namespace GamesShop.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteConfirmed(int id)
         {
-            var game = await _context.Games.FindAsync(id);
-            _context.Games.Remove(game);
-            await _context.SaveChangesAsync();
+            await _db.DeleteAsync(id);
             return RedirectToAction(nameof(Index));
-        }
-
-        private bool GameExists(int id)
-        {
-            return _context.Games.Any(e => e.Id == id);
-        }
-
-        private void UpdateGameGenres(string[] selectedGenres, Game gameToUpdate)
-        {
-            if (selectedGenres == null)
-            {
-                gameToUpdate.GenreAssigment = new List<GenreAssigment>();
-                return;
-            }
-
-            var selectedGenresHS = new HashSet<string>(selectedGenres);
-            var gameGenres = new HashSet<int>
-                (gameToUpdate.GenreAssigment.Select(c => c.Genre.IdGenre));
-            foreach (var genre in _context.Genres)
-            {
-                if (selectedGenresHS.Contains(genre.IdGenre.ToString()))
-                {
-                    if (!gameGenres.Contains(genre.IdGenre))
-                    {
-                        gameToUpdate.GenreAssigment.Add(new GenreAssigment { GameId = gameToUpdate.Id, GenreId = genre.IdGenre });
-                    }
-                }
-                else
-                {
-
-                    if (gameGenres.Contains(genre.IdGenre))
-                    {
-                        GenreAssigment generToRemove = gameToUpdate.GenreAssigment.FirstOrDefault(i => i.GenreId == genre.IdGenre);
-                        _context.Remove(generToRemove);
-                    }
-                }
-            }
         }
 
         private void PopulateDeveloperDropDownList(object selectedDeveloper = null)
